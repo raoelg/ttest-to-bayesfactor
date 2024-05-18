@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="author" content="Raoul P. P. P. Grasman">
+    <meta name="copyright" content="Raoul P. P. P. Grasman, 2024">
+    <meta name="license" content="CC BY 4.0">
+    <link rel="license" href="https://creativecommons.org/licenses/by/4.0/">
+    <title>Bayes Factor T-Test Calculator</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jstat/1.9.4/jstat.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/10.0.0/math.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/numeric/1.2.6/numeric.min.js"></script>
+    <script src="https://unpkg.com/lib-r-math.js@lts-v1/dist/lib/libR.min.js"></script>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="text-center">Bayes Factor T-Test Calculator</h1>
+        <p class="text-center">Enter the t-statistic, number of observations, and degrees of freedom to calculate the Bayes Factor.</p>
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <form id="bayesFactorForm">
+                    <div class="mb-3">
+                        <label for="tStat" class="form-label">T-Statistic</label>
+                        <input type="number" step="any" class="form-control" id="tStat" required>
+                    </div>
+                    <div class="mb-3 row">
+                        <div class="col-md-6">
+                            <label for="numObservations1" class="form-label">Number of Observations group 1 (<i>n<sub>1</sub></i>)</label>
+                            <input type="number" step="any" class="form-control" id="numObservations1" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="numObservations2" class="form-label">Number of Observations group 2 (<i>n<sub>2</sub></i>)</label>
+                            <input type="number" step="any" class="form-control" id="numObservations2" value=0>
+                        </div>
+                    </div>        
+                    <div class="mb-3">
+                        <label for="degreesOfFreedom" class="form-label">Degrees of Freedom (<i>df</i>)</label>
+                        <input type="number" step="any" class="form-control" id="degreesOfFreedom" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Calculate Bayes Factor</button>
+                </form>
+                <div class="mt-4">
+                    <h2>Result</h2>
+                    <p id="result"></p>
+                </div>
+                <div class="mt-4">
+                    <h2>Instructions</h2>
+                    <p><strong>One-Sample T-Test:</strong></p>
+                    <ul>
+                        <li><strong>T-Statistic:</strong> Use the t-statistic from your test output.</li>
+                        <li><strong>Number of Observations (n<sub>1</sub>):</strong> Use the total number of observations used for computing the mean.</li>
+                        <li><strong>Number of Observations (n<sub>2</sub>):</strong> Use 0 here.</li>
+                        <li><strong>Degrees of Freedom (df):</strong> Use the number of degrees of freedom reported for the test.</li>
+                    </ul>
+                    <p><strong>Two Independent Samples T-Test:</strong></p>
+                    <ul>
+                        <li><strong>T-Statistic:</strong> Use the t-statistic from your test output.</li>
+                        <li><strong>Number of Observations (n<sub>1</sub>):</strong> Use the total number of observations in group 1.</li>
+                        <li><strong>Number of Observations (n<sub>2</sub>):</strong> Use the total number of observations in group 2.</li>
+                        <li><strong>Degrees of Freedom (df):</strong> Check your test output; often calculated as <i> n<sub>1</sub> + n<sub>2</sub> - 2 </i> for equal variances or using Welch-Satterthwaite equation for unequal variances.</li>
+                    </ul>
+                    <p><strong>Matched Groups (Repeated Measures) T-Test:</strong></p>
+                    <ul>
+                        <li><strong>T-Statistic:</strong> Use the t-statistic from your test output.</li>
+                        <li><strong>Number of Observations (n<sub>1</sub>):</strong> Use the number of pairs of observation.</li>
+                        <li><strong>Number of Observations (n<sub>2</sub>):</strong> Use 0 here.</li>
+                        <li><strong>Degrees of Freedom (df):</strong> Check your test output; oftedn calculated as <i> n - 1 </i> where <i> n </i> is the number of pairs.</li>
+                    </ul>
+                    <p><strong>Other Scenarios:</strong></p>
+                    <ul>
+                        <li><strong>For any t-test:</strong> Ensure you extract the correct t-statistic, number of observations, and degrees of freedom from your test output or paper.</li>
+                        <li>If unsure about the degrees of freedom, it is often provided in the output of statistical software or reported in scientific papers.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const {
+            StudentT,
+            rng: { MarsagliaMultiCarry },
+            rng: { normal: { AhrensDieter } }
+        } = libR;
+
+        //*.Uses default argument "Normal()".
+        //*.Normal itself using default arguments.
+        const defaultT = StudentT();
+
+        //explicit use of PRNG's
+        const mmc = new MarsagliaMultiCarry(0);
+        const ad = new AhrensDieter(mmc);
+
+        //*create explicit functions
+        const explicitT = StudentT(ad);
+
+        //const { dt, pt, qt, rt } = explicitT;
+    </script>
+    <script>        
+        // Function to perform numerical integration using the trapezoidal rule
+        function integrate(func, a, b, n = 100000) {
+            const h = (b - a) / n;
+            let sum = 0.5 * (func(a) + func(b));
+            for (let i = 1; i < n; i++) {
+                sum += func(a + i * h);
+            }
+            return sum * h;
+        }
+
+        // Function to calculate fH0
+        function fH0(t, df, n, delta = 0) {
+            return explicitT.dt(t, df, Math.sqrt(n) * delta);
+        }
+
+        // Function to calculate fH1
+        function fH1(t, df, n) {
+            // Define the integrand function
+            function integrand(delta) {
+                return fH0(t, df, n, delta) * explicitT.dt(delta, 1);
+            }
+
+            // Perform the numerical integration over a large finite interval
+            const result = integrate(integrand, -1e4, 1e4);
+            return result;
+        }
+
+        // Function to calculate Bayes Factor for t-test
+        function bayesFactor_ttest(t, n, df) {
+            const numerator = fH0(t, df, n);
+            const denominator = fH1(t, df, n);
+            return numerator / denominator;
+        }
+    </script>
+
+
+    <script>
+        document.getElementById('bayesFactorForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            
+            const t = parseFloat(document.getElementById('tStat').value);
+            const n1 = parseFloat(document.getElementById('numObservations1').value);
+            const n2 = parseFloat(document.getElementById('numObservations2').value);
+            const df = parseFloat(document.getElementById('degreesOfFreedom').value);
+            const n = (n2 == 0) ? n1 : n1*n2 / (n1 + n2)
+
+            const bf = bayesFactor_ttest(t, n, df);
+            console.log(bf)
+            document.getElementById('result').innerText = `Bayes Factor: ${bf.toFixed(5)}`;
+        });
+    </script>
+
+    <footer>
+        <p style="color:gray;font-size: 6pt;">© 2024 Raoul Grasman. <a rel="license" href="https://creativecommons.org/licenses/by/4.0/">This work is licensed under a Creative Commons Attribution 4.0 International License</a>.</p>
+    </footer>
+</body>
+</html>
