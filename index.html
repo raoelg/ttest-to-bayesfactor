@@ -13,6 +13,17 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/10.0.0/math.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/numeric/1.2.6/numeric.min.js"></script>
     <script src="https://unpkg.com/lib-r-math.js@lts-v1/dist/lib/libR.min.js"></script>
+    <style>
+        .slider-labels {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .slider-labels .label {
+            flex: 1;
+            text-align: center;
+        }
+    </style>
 </head>
 <body>
     <div class="container mt-5">
@@ -39,6 +50,15 @@
                         <label for="degreesOfFreedom" class="form-label">Degrees of Freedom (<i>df</i>)</label>
                         <input type="number" step="any" class="form-control" id="degreesOfFreedom" required>
                     </div>
+                    <div class="slider-labels mb-3">
+                        <label for="effectSizeSlider" class="form-label">Prior scale (<i>r</i> = <span id="rvalue">1.0</span>)</label>
+                        <div>
+                        <span class="label">Small effects</span>
+                        <input onchange="document.getElementById('rvalue').innerText = this.value" type="range" class="form-control-range" id="effectSizeSlider" min="0.1" max="2.2" step="0.1" value="1.0">
+                        <span class="label">Large effects</span>
+                        </div>
+                    </div>
+    
                     <button type="submit" class="btn btn-primary">Calculate Bayes Factor</button>
                 </form>
                 <div class="mt-4">
@@ -66,18 +86,24 @@
                         <li><strong>T-Statistic:</strong> Use the t-statistic from your test output.</li>
                         <li><strong>Number of Observations (n<sub>1</sub>):</strong> Use the number of pairs of observation.</li>
                         <li><strong>Number of Observations (n<sub>2</sub>):</strong> Use 0 here.</li>
-                        <li><strong>Degrees of Freedom (df):</strong> Check your test output; oftedn calculated as <i> n - 1 </i> where <i> n </i> is the number of pairs.</li>
+                        <li><strong>Degrees of Freedom (df):</strong> Check your test output; often calculated as <i> n - 1 </i> where <i> n </i> is the number of pairs.</li>
                     </ul>
                     <p><strong>Other Scenarios:</strong></p>
                     <ul>
                         <li><strong>For any t-test:</strong> Ensure you extract the correct t-statistic, number of observations, and degrees of freedom from your test output or paper.</li>
                         <li>If unsure about the degrees of freedom, it is often provided in the output of statistical software or reported in scientific papers.</li>
+                        <li>The prior scale <i>r</i> is default set to 1.0 as recommended in (Rouder et al., 2009). If small effects are expected choices of <i>r</i> smaller than 1.0 are advised, while if only large effects are of interest values larger than one could be set.</li>
                     </ul>
                 </div>
+                <div class="mt-4">
+                    <h2>Details</h2>
+                    <p>The Bayes factor computed here is the <em>Jeffreys, Zellner, Siow (JZS)</em> Bayes factor <i>BF<sub>01</sub></i> suggested by Rouder and colleagues (2009), although computed differently. It is based on a Cauchy prior on the effect size <em>&delta; = &mu;/&sigma;</i>, which can be derived from a the prior defined by <i>&delta; ~ N(0,&sigma;<sub>&delta;</sub><sup>2</sup>), &sigma;<sub>&delta;</sub><sup>2</sup> ~ Inv-&chi;<sup>2</sup>(1)</i>.
+                </div>
+            
             </div>
         </div>
     </div>
-    
+
     <script>
         const {
             StudentT,
@@ -115,10 +141,10 @@
         }
 
         // Function to calculate fH1
-        function fH1(t, df, n) {
+        function fH1(t, df, n, r=1.0) {
             // Define the integrand function
             function integrand(delta) {
-                return fH0(t, df, n, delta) * explicitT.dt(delta, 1);
+                return fH0(t, df, n, delta) * explicitT.dt(delta/r, 1) / r;
             }
 
             // Perform the numerical integration over a large finite interval
@@ -127,9 +153,9 @@
         }
 
         // Function to calculate Bayes Factor for t-test
-        function bayesFactor_ttest(t, n, df) {
+        function bayesFactor_ttest(t, n, df, r=1.0) {
             const numerator = fH0(t, df, n);
-            const denominator = fH1(t, df, n);
+            const denominator = fH1(t, df, n, r);
             return numerator / denominator;
         }
     </script>
@@ -143,9 +169,10 @@
             const n1 = parseFloat(document.getElementById('numObservations1').value);
             const n2 = parseFloat(document.getElementById('numObservations2').value);
             const df = parseFloat(document.getElementById('degreesOfFreedom').value);
+            const r = parseFloat(document.getElementById('effectSizeSlider').value);
             const n = (n2 == 0) ? n1 : n1*n2 / (n1 + n2)
 
-            const bf = bayesFactor_ttest(t, n, df);
+            const bf = bayesFactor_ttest(t, n, df, r);
             console.log(bf)
             document.getElementById('result').innerText = `Bayes Factor: ${bf.toFixed(5)}`;
         });
