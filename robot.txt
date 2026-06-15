@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://raoelg.github.io/ttest-to-bayesfactor/sitemap.xml
